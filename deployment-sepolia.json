@@ -1,0 +1,27 @@
+{
+  "network": "Ethereum Sepolia Testnet",
+  "chainId": 11155111,
+  "deployer": "0xb94d3bd504538d7Ad12661735567D134A0acb147",
+  "config": {
+    "treasury": "0xb94d3bd504538d7Ad12661735567D134A0acb147",
+    "dao": "0xb94d3bd504538d7Ad12661735567D134A0acb147",
+    "admin": "0xb94d3bd504538d7Ad12661735567D134A0acb147"
+  },
+  "contracts": {
+    "CAPX": {
+      "address": "0x23ff4f13D06f085159c1D6142b5904BbA7233a6f",
+      "name": "CAPShield Token",
+      "symbol": "CAPY",
+      "decimals": 18,
+      "maxSupply": "100000000000000000000000000"
+    },
+    "ANGEL": {
+      "address": "0x082D50eDd508c44d545f2dEeAC7744D0882E9d6b",
+      "name": "AngleSeed Token",
+      "symbol": "SEED",
+      "decimals": 18,
+      "maxSupply": "10000000000000000000000000000"
+    }
+  },
+  "timestamp": "2025-01-03T00:00:00.000Z"
+}
