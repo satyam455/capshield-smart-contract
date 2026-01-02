@@ -1,5 +1,6 @@
 // test/tokens.test.js
 const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("CAPX and ANGEL Tokens", function () {
   let capx, angel;
@@ -21,18 +22,18 @@ describe("CAPX and ANGEL Tokens", function () {
       expect(await capx.symbol()).to.equal("CAPX");
       expect(await capx.decimals()).to.equal(18);
       expect(await capx.totalSupply()).to.equal(
-        ethers.utils.parseUnits("100000000", 18)
+        ethers.parseUnits("100000000", 18)
       );
       expect(await capx.getMaxSupply()).to.equal(
-        ethers.utils.parseUnits("100000000", 18)
+        ethers.parseUnits("100000000", 18)
       );
     });
 
     it("Should allow anyone to burn their own tokens", async function () {
-      await capx.transfer(addr1.address, ethers.utils.parseUnits("1000", 18));
-      await capx.connect(addr1).burn(ethers.utils.parseUnits("500", 18));
+      await capx.transfer(addr1.address, ethers.parseUnits("1000", 18));
+      await capx.connect(addr1).burn(ethers.parseUnits("500", 18));
       expect(await capx.balanceOf(addr1.address)).to.equal(
-        ethers.utils.parseUnits("500", 18)
+        ethers.parseUnits("500", 18)
       );
     });
   });
@@ -40,9 +41,9 @@ describe("CAPX and ANGEL Tokens", function () {
   describe("ANGEL Token - No Fixed Supply", function () {
     it("Should allow owner to mint additional tokens", async function () {
       const initialSupply = await angel.totalSupply();
-      await angel.mint(addr1.address, ethers.utils.parseUnits("5000000", 18));
+      await angel.mint(addr1.address, ethers.parseUnits("5000000", 18));
       expect(await angel.totalSupply()).to.equal(
-        initialSupply.add(ethers.utils.parseUnits("5000000", 18))
+        initialSupply + ethers.parseUnits("5000000", 18)
       );
     });
 
@@ -50,7 +51,7 @@ describe("CAPX and ANGEL Tokens", function () {
       await expect(
         angel
           .connect(addr1)
-          .mint(addr1.address, ethers.utils.parseUnits("1000", 18))
+          .mint(addr1.address, ethers.parseUnits("1000", 18))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
