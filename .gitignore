@@ -28,3 +28,12 @@ dist-ssr
 old.js
 tmp
 temp.js
+
+# Temporarily ignore CAPX files
+
+
+node_modules/
+artifacts/
+cache/
+coverage/
+.env
