@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
@@ -18,6 +18,14 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 // - Pause + Emergency Stop
 // - Multisig admin roles
 contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
+    // Custom Errors (Gas optimized)
+    error ZeroAddress();
+    error AdminMustBeContract();
+    error ExceedsMaxSupply();
+    error ZeroRevenue();
+    error ZeroMarketValue();
+    error CalculatedMintIsZero();
+
     // Role definitions
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant TEAM_MINTER_ROLE = keccak256("TEAM_MINTER_ROLE");
@@ -40,11 +48,12 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
     // Total minted tracking (irreversible cap enforcement)
     uint256 public totalMinted;
 
-    // Exemption mapping
-    mapping(address => bool) public isExemptFromFees;
+    // Exemption mapping (named for better readability)
+    mapping(address account => bool exempt) public isExemptFromFees;
 
     // Events
     event RevenueMint(address indexed to, uint256 amount, uint256 revenue, uint256 marketValue);
+    event Mint(address indexed to, uint256 amount, bytes32 indexed mintType);
     event TreasuryFee(address indexed from, address indexed to, uint256 amount);
     event TreasuryAddressUpdated(address indexed oldAddress, address indexed newAddress);
     event DAOAddressUpdated(address indexed oldAddress, address indexed newAddress);
@@ -56,9 +65,10 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
         address _daoAddress,
         address _adminAddress
     ) ERC20("CAPShield Token", "CAPY") {
-        require(_treasuryAddress != address(0), "Treasury address cannot be zero");
-        require(_daoAddress != address(0), "DAO address cannot be zero");
-        require(_adminAddress != address(0), "Admin address cannot be zero");
+        if (_treasuryAddress == address(0)) revert ZeroAddress();
+        if (_daoAddress == address(0)) revert ZeroAddress();
+        if (_adminAddress == address(0)) revert ZeroAddress();
+        if (!_isContract(_adminAddress)) revert AdminMustBeContract();
 
         treasuryAddress = _treasuryAddress;
         daoAddress = _daoAddress;
@@ -92,6 +102,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function teamMint(address to, uint256 amount) external onlyRole(TEAM_MINTER_ROLE) whenNotPaused {
         _mintWithCapCheck(to, amount);
+        emit Mint(to, amount, TEAM_MINTER_ROLE);
     }
 
     /**
@@ -101,6 +112,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function treasuryMint(address to, uint256 amount) external onlyRole(TREASURY_MINTER_ROLE) whenNotPaused {
         _mintWithCapCheck(to, amount);
+        emit Mint(to, amount, TREASURY_MINTER_ROLE);
     }
 
     /**
@@ -110,6 +122,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function daoMint(address to, uint256 amount) external onlyRole(DAO_MINTER_ROLE) whenNotPaused {
         _mintWithCapCheck(to, amount);
+        emit Mint(to, amount, DAO_MINTER_ROLE);
     }
 
     /**
@@ -124,15 +137,16 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
         uint256 revenue,
         uint256 marketValue
     ) external onlyRole(TREASURY_MINTER_ROLE) whenNotPaused {
-        require(revenue > 0, "Revenue must be greater than 0");
-        require(marketValue > 0, "Market value must be greater than 0");
+        if (revenue == 0) revert ZeroRevenue();
+        if (marketValue == 0) revert ZeroMarketValue();
 
         uint256 amount = (revenue * 10**_DECIMALS) / marketValue;
-        require(amount > 0, "Calculated mint amount is 0");
+        if (amount == 0) revert CalculatedMintIsZero();
 
         _mintWithCapCheck(to, amount);
 
         emit RevenueMint(to, amount, revenue, marketValue);
+        emit Mint(to, amount, TREASURY_MINTER_ROLE);
     }
 
     /**
@@ -141,7 +155,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      * @param amount Amount to mint
      */
     function _mintWithCapCheck(address to, uint256 amount) private {
-        require(totalMinted + amount <= MAX_SUPPLY, "Minting would exceed max supply");
+        if (totalMinted + amount > MAX_SUPPLY) revert ExceedsMaxSupply();
 
         totalMinted += amount;
         _mint(to, amount);
@@ -158,8 +172,8 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
         address to,
         uint256 amount
     ) internal virtual override {
-        require(from != address(0), "ERC20: transfer from the zero address");
-        require(to != address(0), "ERC20: transfer to the zero address");
+        if (from == address(0)) revert ZeroAddress();
+        if (to == address(0)) revert ZeroAddress();
 
         // Check if sender or recipient is exempt from fees
         if (isExemptFromFees[from] || isExemptFromFees[to]) {
@@ -190,7 +204,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      * @param newTreasury New treasury address
      */
     function updateTreasuryAddress(address newTreasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newTreasury != address(0), "Treasury address cannot be zero");
+        if (newTreasury == address(0)) revert ZeroAddress();
 
         address oldTreasury = treasuryAddress;
 
@@ -210,7 +224,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      * @param newDAO New DAO address
      */
     function updateDAOAddress(address newDAO) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newDAO != address(0), "DAO address cannot be zero");
+        if (newDAO == address(0)) revert ZeroAddress();
 
         address oldDAO = daoAddress;
 
@@ -231,7 +245,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      * @param exempt Exemption status
      */
     function setExemption(address account, bool exempt) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(account != address(0), "Cannot set exemption for zero address");
+        if (account == address(0)) revert ZeroAddress();
         isExemptFromFees[account] = exempt;
         emit ExemptionUpdated(account, exempt);
     }
@@ -273,5 +287,14 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function canMint(uint256 amount) external view returns (bool) {
         return totalMinted + amount <= MAX_SUPPLY;
+    }
+
+    /**
+     * @dev Check if an address is a contract
+     * @param account Address to check
+     * @return True if the address contains code
+     */
+    function _isContract(address account) private view returns (bool) {
+        return account.code.length > 0;
     }
 }

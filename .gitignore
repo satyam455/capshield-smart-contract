@@ -37,3 +37,7 @@ artifacts/
 cache/
 coverage/
 .env
+
+# Documentation files
+MAINNET_DEPLOYMENT_CHECKLIST.md
+OPTIMIZATION_REPORT.md
